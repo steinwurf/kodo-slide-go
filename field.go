@@ -1,4 +1,4 @@
-// package kodoslide
+package kslide
 
 // // Copyright Steinwurf ApS 2018.
 // // Distributed under the "STEINWURF RESEARCH LICENSE 1.0".

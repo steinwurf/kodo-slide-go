@@ -1,4 +1,4 @@
-// package kodoslide_test
+package kslide_test
 
 // import (
 // 	"testing"
