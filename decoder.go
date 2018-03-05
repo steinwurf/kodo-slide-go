@@ -25,19 +25,19 @@ func freeDecoder(decoder *Decoder) {
 
 // @param decoder The decoder to query
 // @return the symbol size in bytes
-func (decoder *Decoder) symbolSize() uint32 {
+func (decoder *Decoder) SymbolSize() uint32 {
 	return uint32(C.kslide_decoder_symbol_size(decoder.mDecoder))
 }
 
 // @param decoder The decoder to query
 // @return The number of symbols in the stream
-func (decoder *Decoder) streamSymbols() uint32 {
+func (decoder *Decoder) StreamSymbols() uint32 {
 	return uint32(C.kslide_decoder_stream_symbols(decoder.mDecoder))
 }
 
 // @param decoder The decoder to query
 // @return The number of symbols in the stream
-func (decoder *Decoder) streamLowerBound() uint32 {
+func (decoder *Decoder) StreamLowerBound() uint32 {
 	return uint32(C.kslide_decoder_stream_lower_bound(decoder.mDecoder))
 }
 
@@ -46,28 +46,28 @@ func (decoder *Decoder) streamLowerBound() uint32 {
 // @param decoder The decoder to push to.
 // @param data The data pointer to push.
 // @return The stream index of the symbol being added.
-func (decoder *Decoder) pushFrontSymbol(data *[]uint8) uint64 {
+func (decoder *Decoder) PushFrontSymbol(data *[]uint8) uint64 {
 	return uint64(C.kslide_decoder_push_front_symbol(
 		decoder.mDecoder, (*C.uint8_t)(&(*data)[0])))
 }
 
 // @param decoder The decoder to query
 // @return The number of symbols decoded
-func (decoder *Decoder) symbolsDecoded() uint32 {
+func (decoder *Decoder) SymbolsDecoded() uint32 {
 	return uint32(C.kslide_decoder_symbols_decoded(decoder.mDecoder))
 }
 
 // @param decoder The decoder to query
 // @param lower_bound The index of the "oldest" symbol in the window
 // @param symbols The number of symbols in the window
-func (decoder *Decoder) setWindow(lowerBound uint32, symbols uint32) {
+func (decoder *Decoder) SetWindow(lowerBound uint32, symbols uint32) {
 	C.kslide_decoder_set_window(
 		decoder.mDecoder,
 		C.uint32_t(lowerBound),
 		C.uint32_t(symbols))
 }
 
-func (decoder *Decoder) readSymbol(symbol *[]uint8, coefficients *[]uint8) {
+func (decoder *Decoder) ReadSymbol(symbol *[]uint8, coefficients *[]uint8) {
 	C.kslide_decoder_read_symbol(
 		decoder.mDecoder,
 		(*C.uint8_t)(&(*symbol)[0]),
