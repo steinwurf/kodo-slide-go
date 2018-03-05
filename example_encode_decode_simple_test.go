@@ -1,74 +1,113 @@
 package kslide_test
 
-// // Copyright Steinwurf ApS 2018.
-// // Distributed under the "STEINWURF RESEARCH LICENSE 1.0".
-// // See accompanying file LICENSE.rst or
-// // http://www.steinwurf.com/licensing
+// Copyright Steinwurf ApS 2018.
+// Distributed under the "STEINWURF RESEARCH LICENSE 1.0".
+// See accompanying file LICENSE.rst or
+// http://www.steinwurf.com/licensing
 
-// import (
-// 	"fmt"
-// 	"math/rand"
-// 	"time"
+import (
+	"fmt"
+	"math/rand"
+	"time"
 
-// 	. "github.com/steinwurf/kodo-slide-go"
-// )
+	. "github.com/steinwurf/kodo-slide-go"
+)
 
-// func Example_encodeDecodeSimple() {
-// 	// Seed random number generator to produce different results every time
-// 	rand.Seed(time.Now().UTC().UnixNano())
+type SymbolStorage struct {
+	symbolSize uint32
+	symbols    uint32
+	data       []uint8
+}
 
-// 	// Set the number of symbols (i.e. the generation size in RLNC
-// 	// terminology) and the size of a symbol in bytes
-// 	var symbols, symbolSize uint32 = 10, 100
+func allocateStorage(symbolSize uint32, symbols uint32) *SymbolStorage {
+	symbolStorage := new(SymbolStorage)
 
-// 	// Initialization of encoder and decoder
-// 	encoderFactory := NewEncoderFactory(Binary8, symbols, symbolSize)
-// 	decoderFactory := NewDecoderFactory(Binary8, symbols, symbolSize)
+	symbolStorage.symbolSize = symbolSize
+	symbolStorage.symbols = symbols
+	symbolStorage.data = make([]uint8, symbols*symbolSize)
+	return symbolStorage
+}
 
-// 	encoder := encoderFactory.Build()
-// 	decoder := decoderFactory.Build()
+func randomizeStorage(symbolStorage *SymbolStorage) {
+	size := symbolStorage.symbolSize * symbolStorage.symbols
+	for i := uint32(0); i < size; i++ {
+		symbolStorage.data[i] = uint8(rand.Uint32())
+	}
+}
 
-// 	// Allocate some storage for a "payload" the payload is what we would
-// 	// eventually send over a network
-// 	payload := make([]uint8, encoder.PayloadSize())
+func storageSymbol(symbolStorage *SymbolStorage, index uint32) []uint8 {
+	return symbolStorage.data[index*symbolStorage.symbolSize : (index+1)*symbolStorage.symbolSize]
+}
 
-// 	// Allocate some data to encode. In this case we make a buffer
-// 	// with the same size as the encoder's block size (the max.
-// 	// amount a single encoder can encode)
-// 	dataIn := make([]uint8, encoder.BlockSize())
+func Example_encodeDecodeSimple() {
+	// Seed random number generator to produce different results every time
+	rand.Seed(time.Now().UTC().UnixNano())
+	symbols := uint32(100)
+	symbolSize := uint32(750)
 
-// 	// Just for fun - fill the data with random data
-// 	for i := range dataIn {
-// 		dataIn[i] = uint8(rand.Uint32())
-// 	}
+	// Initialization of encoder and decoder
+	encoderFactory := NewEncoderFactory()
+	decoderFactory := NewDecoderFactory()
 
-// 	// Assign the data buffer to the encoder so that we may start
-// 	// to produce encoded symbols from it
-// 	encoder.SetConstSymbols(&dataIn)
+	encoderFactory.SetSymbolSize(symbolSize)
+	decoderFactory.SetSymbolSize(symbolSize)
 
-// 	// Set the storage for the decoder
-// 	dataOut := make([]uint8, len(dataIn))
-// 	decoder.SetMutableSymbols(&dataOut)
+	encoder := encoderFactory.Build()
+	decoder := decoderFactory.Build()
 
-// 	// Set systematic off
-// 	encoder.SetSystematicOff()
+	// Allocate memory for the encoder and decoder
+	decoderStorage := allocateStorage(symbolSize, symbols)
+	encoderStorage := allocateStorage(symbolSize, symbols)
 
-// 	for !decoder.IsComplete() {
+	// Fill the encoder storage with random data
+	randomizeStorage(encoderStorage)
 
-// 		// Encode the packet into the payload buffer
-// 		encoder.WritePayload(&payload)
-// 		// Pass that packet to the decoder
-// 		decoder.ReadPayload(&payload)
-// 	}
+	// Provide the decoder with storage
+	for i := uint32(0); i < symbols; i++ {
+		symbol := storageSymbol(decoderStorage, i)
+		decoder.PushFrontSymbol(&symbol)
+	}
 
-// 	// Check if we properly decoded the data
-// 	for i, v := range dataIn {
-// 		if v != dataOut[i] {
-// 			fmt.Println("Unexpected failure to decode")
-// 			fmt.Println("Please file a bug report :)")
-// 			return
-// 		}
-// 	}
-// 	fmt.Println("Data decoded correctly")
-// 	// Output: Data decoded correctly
-// }
+	iterations := uint32(0)
+	maxIterations := uint32(1000)
+	symbolsDecoded := uint32(0)
+
+	for symbolsDecoded < symbols && iterations < maxIterations {
+
+		if encoder.StreamSymbols() < symbols && rand.Uint32()%2 == 0 {
+			symbol := storageSymbol(encoderStorage, encoder.StreamSymbols())
+			encoder.PushFrontSymbol(&symbol)
+		}
+
+		if encoder.StreamSymbols() == 0 {
+			continue
+		}
+
+		encoder.SetWindow(encoder.StreamLowerBound(), encoder.StreamSymbols())
+		decoder.SetWindow(encoder.StreamLowerBound(), encoder.StreamSymbols())
+
+		coefficients := make([]uint8, encoder.CoefficientsVectorSize())
+
+		symbol := make([]uint8, encoder.SymbolSize())
+
+		encoder.SetSeed(rand.Uint32())
+		encoder.Generate(&coefficients)
+
+		encoder.WriteSymbol(&symbol, &coefficients)
+		decoder.ReadSymbol(&symbol, &coefficients)
+
+		symbolsDecoded = decoder.SymbolsDecoded()
+		iterations++
+	}
+
+	// Check if we properly decoded the data
+	for i, v := range encoderStorage.data {
+		if v != decoderStorage.data[i] {
+			fmt.Println("Unexpected failure to decode")
+			fmt.Println("Please file a bug report :)")
+			return
+		}
+	}
+	fmt.Println("Data decoded correctly")
+	// Output: Data decoded correctly
+}
