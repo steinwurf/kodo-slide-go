@@ -1,4 +1,4 @@
-package kodorlnc
+package kodoslide
 
 // Copyright Steinwurf ApS 2018.
 // Distributed under the "STEINWURF RESEARCH LICENSE 1.0".
@@ -6,9 +6,9 @@ package kodorlnc
 // http://www.steinwurf.com/licensing
 
 /*
-#cgo CFLAGS: -I../kodo-rlnc-c
-#cgo LDFLAGS: -L../kodo-rlnc-c -lkodo_rlnc_c_static -lkodo_rlnc -lfifi -lcpuid
-#include <kodo_rlnc_c.h>
+#cgo CFLAGS: -I../kodo-slide-c
+#cgo LDFLAGS: -L../kodo-slide-c -lkodo_slide_c_static -lkodo_slide -lfifi -lcpuid
+#include <kodo_slide_c.h>
 */
 import "C"
 import (
@@ -17,7 +17,7 @@ import (
 
 // DecoderFactory builds Decoders
 type DecoderFactory struct {
-	mFactory C.kodo_rlnc_decoder_factory_t
+	mFactory C.kodo_slide_decoder_factory_t
 }
 
 // NewDecoderFactory builds a new decoder factory
@@ -31,7 +31,7 @@ type DecoderFactory struct {
 func NewDecoderFactory(
 	finiteField int32, symbols uint32, symbolSize uint32) *DecoderFactory {
 	factory := new(DecoderFactory)
-	factory.mFactory = C.kodo_rlnc_decoder_factory_construct(
+	factory.mFactory = C.kodo_slide_decoder_factory_construct(
 		C.int32_t(finiteField), C.uint32_t(symbols), C.uint32_t(symbolSize))
 	runtime.SetFinalizer(factory, freeDecoderFactory)
 	return factory
@@ -40,28 +40,28 @@ func NewDecoderFactory(
 // freeDecoderFactory deallocatesthe memory consumed by a factory
 // @param factory The factory which should be deallocated
 func freeDecoderFactory(factory *DecoderFactory) {
-	C.kodo_rlnc_decoder_factory_destruct(factory.mFactory)
+	C.kodo_slide_decoder_factory_destruct(factory.mFactory)
 }
 
 // Symbols returns the number of symbols in a block
 // @param factory The factory to query
 // @return the number of symbols in a block
 func (factory *DecoderFactory) Symbols() uint32 {
-	return uint32(C.kodo_rlnc_decoder_factory_symbols(factory.mFactory))
+	return uint32(C.kodo_slide_decoder_factory_symbols(factory.mFactory))
 }
 
 // SymbolSize returns the symbol size in bytes
 // @param factory The factory to query
 // @return the symbol size in bytes
 func (factory *DecoderFactory) SymbolSize() uint32 {
-	return uint32(C.kodo_rlnc_decoder_factory_symbol_size(factory.mFactory))
+	return uint32(C.kodo_slide_decoder_factory_symbol_size(factory.mFactory))
 }
 
 // SetSymbols sets the number of symbols
 // @param factory The factory which should be configured
 // @param symbols the number of symbols
 func (factory *DecoderFactory) SetSymbols(symbols uint32) {
-	C.kodo_rlnc_decoder_factory_set_symbols(
+	C.kodo_slide_decoder_factory_set_symbols(
 		factory.mFactory, C.uint32_t(symbols))
 }
 
@@ -69,7 +69,7 @@ func (factory *DecoderFactory) SetSymbols(symbols uint32) {
 // @param factory The factory which should be configured
 // @param the symbol size in bytes
 func (factory *DecoderFactory) SetSymbolSize(symbolSize uint32) {
-	C.kodo_rlnc_decoder_factory_set_symbol_size(
+	C.kodo_slide_decoder_factory_set_symbol_size(
 		factory.mFactory, C.uint32_t(symbolSize))
 }
 
@@ -78,7 +78,7 @@ func (factory *DecoderFactory) SetSymbolSize(symbolSize uint32) {
 // @return pointer to an instantiation of an decoder
 func (factory *DecoderFactory) Build() *Decoder {
 	decoder := new(Decoder)
-	decoder.mDecoder = C.kodo_rlnc_decoder_factory_build(factory.mFactory)
+	decoder.mDecoder = C.kodo_slide_decoder_factory_build(factory.mFactory)
 	runtime.SetFinalizer(decoder, freeDecoder)
 	return decoder
 }

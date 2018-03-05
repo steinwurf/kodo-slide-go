@@ -1,9 +1,9 @@
-package kodorlnc_test
+package kodoslide_test
 
 import (
 	"testing"
 
-	. "github.com/steinwurf/kodo-rlnc-go"
+	. "github.com/steinwurf/kodo-slide-go"
 	. "gopkg.in/check.v1"
 )
 
