@@ -24,14 +24,28 @@ type EncoderFactory struct {
 func NewEncoderFactory() *EncoderFactory {
 	factory := new(EncoderFactory)
 	factory.mFactory = C.kslide_new_encoder_factory()
-	runtime.SetFinalizer(factory, freeEncoderFactory)
+	runtime.SetFinalizer(factory, deleteEncoderFactory)
 	return factory
 }
 
-// destruct deallocates the memory consumed by a factory
+// deleteEncoderFactory deallocates the memory consumed by a factory
 // @param factory The factory which should be deallocated
-func freeEncoderFactory(factory *EncoderFactory) {
+func deleteEncoderFactory(factory *EncoderFactory) {
 	C.kslide_delete_encoder_factory(factory.mFactory)
+}
+
+// Field returns the finite field
+// @param factory The factory to query
+// @return the the finite field
+func (factory *EncoderFactory) Field() int32 {
+	return int32(C.kslide_encoder_factory_field(factory.mFactory))
+}
+
+// SetField sets the finite field
+// @param factory The factory which should be configured
+// @param field the finite field
+func (factory *EncoderFactory) SetField(field int32) {
+	C.kslide_encoder_factory_set_field(factory.mFactory, C.int32_t(field))
 }
 
 // SymbolSize returns the symbol size in bytes
@@ -55,6 +69,6 @@ func (factory *EncoderFactory) SetSymbolSize(symbolSize uint32) {
 func (factory *EncoderFactory) Build() *Encoder {
 	encoder := new(Encoder)
 	encoder.mEncoder = C.kslide_encoder_factory_build(factory.mFactory)
-	runtime.SetFinalizer(encoder, freeEncoder)
+	runtime.SetFinalizer(encoder, deleteEncoder)
 	return encoder
 }

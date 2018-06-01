@@ -24,14 +24,28 @@ type DecoderFactory struct {
 func NewDecoderFactory() *DecoderFactory {
 	factory := new(DecoderFactory)
 	factory.mFactory = C.kslide_new_decoder_factory()
-	runtime.SetFinalizer(factory, freeDecoderFactory)
+	runtime.SetFinalizer(factory, deleteDecoderFactory)
 	return factory
 }
 
-// freeDecoderFactory deallocates the memory consumed by a factory
+// deleteDecoderFactory deallocates the memory consumed by a factory
 // @param factory The factory which should be deallocated
-func freeDecoderFactory(factory *DecoderFactory) {
+func deleteDecoderFactory(factory *DecoderFactory) {
 	C.kslide_delete_decoder_factory(factory.mFactory)
+}
+
+// Field returns the finite field
+// @param factory The factory to query
+// @return the the finite field
+func (factory *DecoderFactory) Field() int32 {
+	return int32(C.kslide_decoder_factory_field(factory.mFactory))
+}
+
+// SetField sets the finite field
+// @param factory The factory which should be configured
+// @param field the finite field
+func (factory *DecoderFactory) SetField(field int32) {
+	C.kslide_decoder_factory_set_field(factory.mFactory, C.int32_t(field))
 }
 
 // SymbolSize returns the symbol size in bytes
@@ -43,7 +57,7 @@ func (factory *DecoderFactory) SymbolSize() uint32 {
 
 // SetSymbolSize sets the symbol size
 // @param factory The factory which should be configured
-// @param the symbol size in bytes
+// @param symbolSize the symbol size in bytes
 func (factory *DecoderFactory) SetSymbolSize(symbolSize uint32) {
 	C.kslide_decoder_factory_set_symbol_size(
 		factory.mFactory, C.uint32_t(symbolSize))
@@ -55,6 +69,6 @@ func (factory *DecoderFactory) SetSymbolSize(symbolSize uint32) {
 func (factory *DecoderFactory) Build() *Decoder {
 	decoder := new(Decoder)
 	decoder.mDecoder = C.kslide_decoder_factory_build(factory.mFactory)
-	runtime.SetFinalizer(decoder, freeDecoder)
+	runtime.SetFinalizer(decoder, deleteDecoder)
 	return decoder
 }

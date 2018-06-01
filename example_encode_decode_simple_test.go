@@ -86,7 +86,7 @@ func Example_encodeDecodeSimple() {
 		encoder.SetWindow(encoder.StreamLowerBound(), encoder.StreamSymbols())
 		decoder.SetWindow(encoder.StreamLowerBound(), encoder.StreamSymbols())
 
-		coefficients := make([]uint8, encoder.CoefficientsVectorSize())
+		coefficients := make([]uint8, encoder.CoefficientVectorSize())
 
 		symbol := make([]uint8, encoder.SymbolSize())
 

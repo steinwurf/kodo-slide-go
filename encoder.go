@@ -17,9 +17,9 @@ type Encoder struct {
 	mEncoder *C.kslide_encoder_t
 }
 
-// freeEncoder deallocates and release the memory consumed by an encoder
+// deleteEncoder deallocates and release the memory consumed by an encoder
 // @param encoder The encoder which should be deallocated
-func freeEncoder(encoder *Encoder) {
+func deleteEncoder(encoder *Encoder) {
 	C.kslide_delete_encoder(encoder.mEncoder)
 }
 
@@ -43,8 +43,8 @@ func (encoder *Encoder) StreamLowerBound() uint32 {
 
 /// @param encoder The encoder to query
 /// @return The size of a coefficient vector in bytes
-func (encoder *Encoder) CoefficientsVectorSize() uint32 {
-	return uint32(C.kslide_encoder_coefficients_vector_size(encoder.mEncoder))
+func (encoder *Encoder) CoefficientVectorSize() uint32 {
+	return uint32(C.kslide_encoder_coefficient_vector_size(encoder.mEncoder))
 }
 
 /// Adds a symbol to the front of the encoder. Increments the stream front

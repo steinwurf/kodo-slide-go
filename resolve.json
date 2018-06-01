@@ -12,7 +12,7 @@
         "name": "kodo-slide-c",
         "resolver": "git",
         "method": "semver",
-        "major": 1,
+        "major": 2,
         "sources": [
             "github.com/steinwurf/kodo-slide-c.git"
         ]

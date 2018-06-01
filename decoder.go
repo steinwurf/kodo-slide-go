@@ -19,7 +19,7 @@ type Decoder struct {
 
 // freeDecoder deallocates and release the memory consumed by an decoder
 // @param decoder The decoder which should be deallocated
-func freeDecoder(decoder *Decoder) {
+func deleteDecoder(decoder *Decoder) {
 	C.kslide_delete_decoder(decoder.mDecoder)
 }
 
