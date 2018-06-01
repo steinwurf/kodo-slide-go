@@ -12,7 +12,7 @@ package kslide
 */
 import "C"
 
-// Decoder is used for encoding data
+// Decoder is used for decoding data
 type Decoder struct {
 	mDecoder *C.kslide_decoder_t
 }
@@ -23,27 +23,27 @@ func deleteDecoder(decoder *Decoder) {
 	C.kslide_delete_decoder(decoder.mDecoder)
 }
 
-// @param decoder The decoder to query
+// SymbolSize returns the symbol size in bytes
 // @return the symbol size in bytes
 func (decoder *Decoder) SymbolSize() uint32 {
 	return uint32(C.kslide_decoder_symbol_size(decoder.mDecoder))
 }
 
-// @param decoder The decoder to query
+// StreamSymbols returns the number of symbols in the stream
 // @return The number of symbols in the stream
 func (decoder *Decoder) StreamSymbols() uint32 {
 	return uint32(C.kslide_decoder_stream_symbols(decoder.mDecoder))
 }
 
-// @param decoder The decoder to query
+// StreamLowerBound returns the number of symbols in the stream
 // @return The number of symbols in the stream
 func (decoder *Decoder) StreamLowerBound() uint32 {
 	return uint32(C.kslide_decoder_stream_lower_bound(decoder.mDecoder))
 }
 
-// Adds a symbol to the front of the decoder. Increments the stream front
-// index.
-// @param decoder The decoder to push to.
+// PushFrontSymbol adds a symbol to the front of the decoder,
+// Increments the stream front index, and returns the stream index of the symbol
+// being added.
 // @param data The data pointer to push.
 // @return The stream index of the symbol being added.
 func (decoder *Decoder) PushFrontSymbol(data *[]uint8) uint64 {
@@ -51,13 +51,14 @@ func (decoder *Decoder) PushFrontSymbol(data *[]uint8) uint64 {
 		decoder.mDecoder, (*C.uint8_t)(&(*data)[0])))
 }
 
-// @param decoder The decoder to query
+// SymbolsDecoded returns the number of symbols decoded
 // @return The number of symbols decoded
 func (decoder *Decoder) SymbolsDecoded() uint32 {
 	return uint32(C.kslide_decoder_symbols_decoded(decoder.mDecoder))
 }
 
-// @param decoder The decoder to query
+// SetWindow changes the index of the "oldest" symbol in the window and the
+// number of symbols in the window.
 // @param lower_bound The index of the "oldest" symbol in the window
 // @param symbols The number of symbols in the window
 func (decoder *Decoder) SetWindow(lowerBound uint32, symbols uint32) {
@@ -67,6 +68,9 @@ func (decoder *Decoder) SetWindow(lowerBound uint32, symbols uint32) {
 		C.uint32_t(symbols))
 }
 
+// ReadSymbol reads a symbol to the decoder.
+// @param symbol A pointer to the symbol
+// @param coefficients A pointer to the coefficients associated with the symbol
 func (decoder *Decoder) ReadSymbol(symbol *[]uint8, coefficients *[]uint8) {
 	C.kslide_decoder_read_symbol(
 		decoder.mDecoder,
