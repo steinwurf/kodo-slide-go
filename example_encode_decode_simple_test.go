@@ -14,12 +14,12 @@ import (
 )
 
 type SymbolStorage struct {
-	symbolSize uint32
-	symbols    uint32
+	symbolSize uint64
+	symbols    uint64
 	data       []uint8
 }
 
-func allocateStorage(symbolSize uint32, symbols uint32) *SymbolStorage {
+func allocateStorage(symbolSize uint64, symbols uint64) *SymbolStorage {
 	symbolStorage := new(SymbolStorage)
 
 	symbolStorage.symbolSize = symbolSize
@@ -30,20 +30,20 @@ func allocateStorage(symbolSize uint32, symbols uint32) *SymbolStorage {
 
 func randomizeStorage(symbolStorage *SymbolStorage) {
 	size := symbolStorage.symbolSize * symbolStorage.symbols
-	for i := uint32(0); i < size; i++ {
+	for i := uint64(0); i < size; i++ {
 		symbolStorage.data[i] = uint8(rand.Uint32())
 	}
 }
 
-func storageSymbol(symbolStorage *SymbolStorage, index uint32) []uint8 {
+func storageSymbol(symbolStorage *SymbolStorage, index uint64) []uint8 {
 	return symbolStorage.data[index*symbolStorage.symbolSize : (index+1)*symbolStorage.symbolSize]
 }
 
 func Example_encodeDecodeSimple() {
 	// Seed random number generator to produce different results every time
 	rand.Seed(time.Now().UTC().UnixNano())
-	symbols := uint32(100)
-	symbolSize := uint32(750)
+	symbols := uint64(100)
+	symbolSize := uint64(750)
 
 	// Initialization of encoder and decoder
 	encoderFactory := NewEncoderFactory()
@@ -63,14 +63,14 @@ func Example_encodeDecodeSimple() {
 	randomizeStorage(encoderStorage)
 
 	// Provide the decoder with storage
-	for i := uint32(0); i < symbols; i++ {
+	for i := uint64(0); i < symbols; i++ {
 		symbol := storageSymbol(decoderStorage, i)
 		decoder.PushFrontSymbol(&symbol)
 	}
 
 	iterations := uint32(0)
 	maxIterations := uint32(1000)
-	symbolsDecoded := uint32(0)
+	symbolsDecoded := uint64(0)
 
 	for symbolsDecoded < symbols && iterations < maxIterations {
 
@@ -90,7 +90,7 @@ func Example_encodeDecodeSimple() {
 
 		symbol := make([]uint8, encoder.SymbolSize())
 
-		encoder.SetSeed(rand.Uint32())
+		encoder.SetSeed(rand.Uint64())
 		encoder.Generate(&coefficients)
 
 		encoder.WriteSymbol(&symbol, &coefficients)
