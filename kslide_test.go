@@ -1,6 +1,7 @@
 package kslide_test
 
 import (
+	"math/rand"
 	"testing"
 
 	. "github.com/steinwurf/kodo-slide-go"
@@ -106,6 +107,29 @@ func (s *MySuite) TestCodec(c *C) {
 	}
 }
 
+type RateController struct {
+	mN        uint32
+	mK        uint32
+	mPosition uint32
+}
+
+func NewRateController(n uint32, k uint32) *RateController {
+	controller := new(RateController)
+	controller.mN = n
+	controller.mK = k
+	controller.mPosition = 0
+
+	return controller
+}
+
+func (controller *RateController) Advance() {
+	controller.mPosition = (controller.mPosition + 1) % controller.mN
+}
+
+func (controller *RateController) GenerateData() bool {
+	return controller.mPosition < controller.mK
+}
+
 func mixCodedUncoded(c *C, field int32) {
 	// Set the capacity of the decoder (this is the number of encoded symbols
 	// that are used in the decoding process).
@@ -135,151 +159,112 @@ func mixCodedUncoded(c *C, field int32) {
 
 	// Cache for all original source symbols added to the encoder - such that
 	// we can check that they are decoded correctly.
-	var sourceSymbols = [maxIterations][symbolSize]uint8{}
+	var sourceSymbolIndex = 0
+	sourceSymbols := make([][]uint8, maxIterations)
 
-	// // Allocate our finite memory for decoding
-	// symbol_storage* decoder_storage = symbol_storage_alloc(capacity, symbol_size);
+	// Allocate our finite memory for decoding
+	decoderStorage := make([]uint8, capacity*symbolSize)
 
-	// // Provide the decoder with storage
-	// for (uint32_t i = 0; i < capacity; ++i)
-	// {
-	//     uint8_t* symbol = symbol_storage_symbol(decoder_storage, i);
-	//     kslide_decoder_push_front_symbol(decoder, symbol);
-	// }
+	// Provide the decoder with storage
+	for i := uint64(0); i < capacity; i++ {
+		symbol := GetSymbol(decoderStorage, symbolSize, i)
+		decoder.PushFrontSymbol(&symbol)
+	}
 
 	// // Initialize our rate controller
-	// rate_controller control = rate_controller_init(8, 3);
+	control := NewRateController(8, 3)
 
-	// // Make sure we will not hang on bugs that cause infinite loops
-	// uint32_t iterations = 0;
+	// Make sure we will not hang on bugs that cause infinite loops
+	var iterations uint32 = 0
 
-	// // Counter for keeping track of the number of decoded symbols
-	// uint32_t decoded = 0;
+	// Counter for keeping track of the number of decoded symbols
+	var decoded uint32 = 0
 
-	// while (decoded < 100U && iterations < max_iterations)
-	// {
-	//     // Update loop state
-	//     ++iterations;
-	//     // Manage the encoder's window
-	//     if (rate_controller_generate_data(control))
-	//     {
-	//         // Create a new source symbol
-	//         uint8_t* source_symbol = (uint8_t*)malloc(symbol_size);
-	//         source_symbols[source_symbols_index] = source_symbol;
-	//         source_symbols_index++;
-	//         assert(source_symbols_index < source_symbol_count);
+	for decoded < 100 && iterations < maxIterations {
+		// Update loop state
+		iterations++
+		// Manage the encoder's window
+		if control.GenerateData() {
+			// Create a new source symbol
+			var sourceSymbol = make([]uint8, symbolSize)
+			for i := 0; i < len(sourceSymbol); i++ {
+				sourceSymbol[i] = uint8(rand.Uint32())
+			}
 
-	//         randomize_buffer(source_symbol, symbol_size);
+			sourceSymbols[sourceSymbolIndex] = sourceSymbol
+			sourceSymbolIndex++
 
-	//         if (kslide_encoder_stream_symbols(encoder) == window_symbols)
-	//         {
-	//             // If window is full - pop a symbol before pushing a new one
-	//             kslide_encoder_pop_back_symbol(encoder);
-	//         }
+			if encoder.StreamSymbols() == windowSymbols {
+				// If window is full - pop a symbol before pushing a new one
+				encoder.PopBackSymbol()
+			}
+			encoder.PushFrontSymbol(&sourceSymbol)
+		}
+		control.Advance()
 
-	//         kslide_encoder_push_front_symbol(encoder, source_symbol);
-	//     }
+		// Uncoded or coded
+		coded := rand.Uint32()%2 == 0
+		var randomIndex uint64 = 0
 
-	//     // Uncoded or coded
-	//     bool coded = rand() % 2;
-	//     uint64_t random_index = 0;
+		// Choose a seed for this encoding
+		seed := rand.Uint64()
 
-	//     // Choose a seed for this encoding
-	//     uint64_t seed = rand();
+		// Encode a symbol
+		encoder.SetWindow(encoder.StreamLowerBound(), encoder.StreamSymbols())
 
-	//     // Encode a symbol
-	//     kslide_encoder_set_window(
-	//         encoder,
-	//         kslide_encoder_stream_lower_bound(encoder),
-	//         kslide_encoder_stream_symbols(encoder));
+		coefficients := make([]uint8, encoder.CoefficientVectorSize())
+		symbol := make([]uint8, encoder.SymbolSize())
 
-	//     uint8_t* coefficients = (uint8_t*) malloc(
-	//         kslide_encoder_coefficient_vector_size(encoder));
-	//     uint8_t* symbol = (uint8_t*)malloc(kslide_encoder_symbol_size(encoder));
+		if coded {
+			encoder.SetSeed(seed)
+			encoder.Generate(&coefficients)
+			encoder.WriteSymbol(&symbol, &coefficients)
+		} else {
+			// Warning: This approach is biased towards the lower end.
+			maxIndex := encoder.WindowUpperBound() - uint64(1)
+			minIndex := encoder.WindowLowerBound()
+			randomIndex = rand.Uint64()%(maxIndex-minIndex+uint64(1)) + minIndex
 
-	//     if (coded)
-	//     {
-	//         kslide_encoder_set_seed(encoder, seed);
-	//         kslide_encoder_generate(encoder, coefficients);
-	//         kslide_encoder_write_symbol(encoder, symbol, coefficients);
-	//     }
-	//     else
-	//     {
-	//         // Warning: This approach is biased towards the lower end.
-	//         uint64_t max_index = kslide_encoder_window_upper_bound(encoder) - 1;
-	//         uint64_t min_index = kslide_encoder_window_lower_bound(encoder);
-	//         random_index = rand() % (max_index - min_index + 1) + min_index;
+			encoder.WriteSourceSymbol(&symbol, randomIndex)
+		}
 
-	//         kslide_encoder_write_source_symbol(encoder, symbol, random_index);
-	//     }
+		if rand.Uint32()%2 == 0 {
+			// Simulate 50% packet loss
+			continue
+		}
 
-	//     rate_controller_advance(control);
+		// Move the decoders's window / stream if needed
+		for decoder.StreamUpperBound() < encoder.StreamUpperBound() {
+			lowerBound := decoder.StreamLowerBound()
+			decoderSymbol := GetSymbolWraparound(
+				decoderStorage, symbolSize, lowerBound, capacity)
 
-	//     if (rand() % 2)
-	//     {
-	//         free(coefficients);
-	//         free(symbol);
-	//         // Simulate 50% packet loss
-	//         continue;
-	//     }
+			if decoder.IsSymbolDecoded(lowerBound) {
+				decoded++
 
-	//     // Move the decoders's window / stream if needed
-	//     while (kslide_decoder_stream_upper_bound(decoder) <
-	//            kslide_encoder_stream_upper_bound(encoder))
-	//     {
-	//         uint64_t lower_bound = kslide_decoder_stream_lower_bound(decoder);
-	//         uint8_t* decoder_symbol = symbol_storage_symbol(decoder_storage, lower_bound);
+				// Compare with corresponding source symbol
+				sourceSymbol := sourceSymbols[lowerBound]
+				c.Assert(sourceSymbol, DeepEquals, decoderSymbol)
+			}
 
-	//         if (kslide_decoder_is_symbol_decoded(decoder, lower_bound))
-	//         {
-	//             ++decoded;
+			decoder.PopBackSymbol()
 
-	//             // Compare with corresponding source symbol
-	//             uint8_t* source_symbol = source_symbols[lower_bound];
-	//             EXPECT_EQ(0, memcmp(decoder_symbol, source_symbol, symbol_size));
-	//         }
+			// Moves the decoder's upper bound
+			decoder.PushFrontSymbol(&decoderSymbol)
+		}
 
-	//         uint64_t pop_index = kslide_decoder_pop_back_symbol(decoder);
-	//         assert(pop_index == lower_bound);
+		// Decode the symbol
+		decoder.SetWindow(encoder.WindowLowerBound(), encoder.WindowSymbols())
 
-	//         // Moves the decoder's upper bound
-	//         kslide_decoder_push_front_symbol(decoder, decoder_symbol);
-	//     }
+		if coded {
+			decoder.SetSeed(seed)
+			decoder.Generate(&coefficients)
+			decoder.ReadSymbol(&symbol, &coefficients)
+		} else {
+			decoder.ReadSourceSymbol(&symbol, randomIndex)
+		}
+	}
 
-	//     // Decode the symbol
-	//     kslide_decoder_set_window(
-	//         decoder,
-	//         kslide_encoder_window_lower_bound(encoder),
-	//         kslide_encoder_window_symbols(encoder));
-
-	//     if (coded)
-	//     {
-	//         kslide_decoder_set_seed(decoder, seed);
-	//         kslide_decoder_generate(decoder, coefficients);
-	//         kslide_decoder_read_symbol(decoder, symbol, coefficients);
-	//     }
-	//     else
-	//     {
-	//         kslide_decoder_read_source_symbol(decoder, symbol, random_index);
-	//     }
-
-	//     free(coefficients);
-	//     free(symbol);
-	// }
-	// SCOPED_TRACE(testing::Message() << "decoded = " << decoded);
-
-	// EXPECT_LT(iterations, max_iterations);
-	// EXPECT_GE(decoded, 100U);
-
-	// symbol_storage_free(decoder_storage);
-
-	// for (uint32_t i = 0; i < source_symbol_count; i++)
-	// {
-	//     free(source_symbols[i]);
-	// }
-	// free(source_symbols);
-	// kslide_delete_encoder(encoder);
-	// kslide_delete_encoder_factory(encoder_factory);
-	// kslide_delete_decoder(decoder);
-	// kslide_delete_decoder_factory(decoder_factory);
+	c.Assert(iterations < maxIterations, Equals, true)
+	c.Assert(decoded >= 100, Equals, true)
 }

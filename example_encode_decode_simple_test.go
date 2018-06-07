@@ -13,32 +13,6 @@ import (
 	. "github.com/steinwurf/kodo-slide-go"
 )
 
-type SymbolStorage struct {
-	symbolSize uint64
-	symbols    uint64
-	data       []uint8
-}
-
-func allocateStorage(symbolSize uint64, symbols uint64) *SymbolStorage {
-	symbolStorage := new(SymbolStorage)
-
-	symbolStorage.symbolSize = symbolSize
-	symbolStorage.symbols = symbols
-	symbolStorage.data = make([]uint8, symbols*symbolSize)
-	return symbolStorage
-}
-
-func randomizeStorage(symbolStorage *SymbolStorage) {
-	size := symbolStorage.symbolSize * symbolStorage.symbols
-	for i := uint64(0); i < size; i++ {
-		symbolStorage.data[i] = uint8(rand.Uint32())
-	}
-}
-
-func storageSymbol(symbolStorage *SymbolStorage, index uint64) []uint8 {
-	return symbolStorage.data[index*symbolStorage.symbolSize : (index+1)*symbolStorage.symbolSize]
-}
-
 func Example_encodeDecodeSimple() {
 	// Seed random number generator to produce different results every time
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -56,15 +30,17 @@ func Example_encodeDecodeSimple() {
 	decoder := decoderFactory.Build()
 
 	// Allocate memory for the encoder and decoder
-	decoderStorage := allocateStorage(symbolSize, symbols)
-	encoderStorage := allocateStorage(symbolSize, symbols)
+	decoderStorage := make([]uint8, symbols*symbolSize)
+	encoderStorage := make([]uint8, symbols*symbolSize)
 
 	// Fill the encoder storage with random data
-	randomizeStorage(encoderStorage)
+	for i := 0; i < len(encoderStorage); i++ {
+		encoderStorage[i] = uint8(rand.Uint32())
+	}
 
 	// Provide the decoder with storage
 	for i := uint64(0); i < symbols; i++ {
-		symbol := storageSymbol(decoderStorage, i)
+		symbol := GetSymbol(decoderStorage, symbolSize, i)
 		decoder.PushFrontSymbol(&symbol)
 	}
 
@@ -75,7 +51,7 @@ func Example_encodeDecodeSimple() {
 	for symbolsDecoded < symbols && iterations < maxIterations {
 
 		if encoder.StreamSymbols() < symbols && rand.Uint32()%2 == 0 {
-			symbol := storageSymbol(encoderStorage, encoder.StreamSymbols())
+			symbol := GetSymbol(encoderStorage, symbolSize, encoder.StreamSymbols())
 			encoder.PushFrontSymbol(&symbol)
 		}
 
@@ -101,8 +77,8 @@ func Example_encodeDecodeSimple() {
 	}
 
 	// Check if we properly decoded the data
-	for i, v := range encoderStorage.data {
-		if v != decoderStorage.data[i] {
+	for i, v := range encoderStorage {
+		if v != decoderStorage[i] {
 			fmt.Println("Unexpected failure to decode")
 			fmt.Println("Please file a bug report :)")
 			return
