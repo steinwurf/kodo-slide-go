@@ -19,42 +19,48 @@ type EncoderFactory struct {
 }
 
 // NewEncoderFactory builds a new encoder factory
-// @return A new factory capable of building encoders using the
-//         selected parameters.
 func NewEncoderFactory() *EncoderFactory {
 	factory := new(EncoderFactory)
 	factory.mFactory = C.kslide_new_encoder_factory()
-	runtime.SetFinalizer(factory, freeEncoderFactory)
+	runtime.SetFinalizer(factory, deleteEncoderFactory)
 	return factory
 }
 
-// destruct deallocates the memory consumed by a factory
-// @param factory The factory which should be deallocated
-func freeEncoderFactory(factory *EncoderFactory) {
+// deleteEncoderFactory deallocates the memory consumed by a factory
+func deleteEncoderFactory(factory *EncoderFactory) {
 	C.kslide_delete_encoder_factory(factory.mFactory)
 }
 
 // SymbolSize returns the symbol size in bytes
-// @param factory The factory to query
-// @return the symbol size in bytes
-func (factory *EncoderFactory) SymbolSize() uint32 {
-	return uint32(C.kslide_encoder_factory_symbol_size(factory.mFactory))
+func (factory *EncoderFactory) SymbolSize() uint64 {
+	return uint64(C.kslide_encoder_factory_symbol_size(factory.mFactory))
 }
 
-// SetSymbolSize sets the symbol size
-// @param factory The factory which should be configured
-// @param the symbol size in bytes
-func (factory *EncoderFactory) SetSymbolSize(symbolSize uint32) {
+// SetSymbolSize sets the symbol size in bytes.
+func (factory *EncoderFactory) SetSymbolSize(symbolSize uint64) {
 	C.kslide_encoder_factory_set_symbol_size(
-		factory.mFactory, C.uint32_t(symbolSize))
+		factory.mFactory, C.uint64_t(symbolSize))
 }
 
-// Build builds the actual encoder
-// @param factory The encoder factory which should be used to build the encoder
-// @return pointer to an instantiation of an encoder
+// Field returns the finite field.
+func (factory *EncoderFactory) Field() int32 {
+	return int32(C.kslide_encoder_factory_field(factory.mFactory))
+}
+
+// SetField sets the finite field.
+func (factory *EncoderFactory) SetField(field int32) {
+	C.kslide_encoder_factory_set_field(factory.mFactory, C.int32_t(field))
+}
+
+// Build builds an encoder
 func (factory *EncoderFactory) Build() *Encoder {
 	encoder := new(Encoder)
 	encoder.mEncoder = C.kslide_encoder_factory_build(factory.mFactory)
-	runtime.SetFinalizer(encoder, freeEncoder)
+	runtime.SetFinalizer(encoder, deleteEncoder)
 	return encoder
+}
+
+// Initialize re-initializes the given encoder so that it can be reused.
+func (factory *EncoderFactory) Initialize(encoder *Encoder) {
+	C.kslide_encoder_factory_initialize(factory.mFactory, encoder.mEncoder)
 }

@@ -19,42 +19,48 @@ type DecoderFactory struct {
 }
 
 // NewDecoderFactory builds a new decoder factory
-// @return A new factory capable of building decoders using the
-//         selected parameters.
 func NewDecoderFactory() *DecoderFactory {
 	factory := new(DecoderFactory)
 	factory.mFactory = C.kslide_new_decoder_factory()
-	runtime.SetFinalizer(factory, freeDecoderFactory)
+	runtime.SetFinalizer(factory, deleteDecoderFactory)
 	return factory
 }
 
-// freeDecoderFactory deallocates the memory consumed by a factory
-// @param factory The factory which should be deallocated
-func freeDecoderFactory(factory *DecoderFactory) {
+// deleteDecoderFactory deallocates the memory consumed by a factory
+func deleteDecoderFactory(factory *DecoderFactory) {
 	C.kslide_delete_decoder_factory(factory.mFactory)
 }
 
 // SymbolSize returns the symbol size in bytes
-// @param factory The factory to query
-// @return the symbol size in bytes
-func (factory *DecoderFactory) SymbolSize() uint32 {
-	return uint32(C.kslide_decoder_factory_symbol_size(factory.mFactory))
+func (factory *DecoderFactory) SymbolSize() uint64 {
+	return uint64(C.kslide_decoder_factory_symbol_size(factory.mFactory))
 }
 
-// SetSymbolSize sets the symbol size
-// @param factory The factory which should be configured
-// @param the symbol size in bytes
-func (factory *DecoderFactory) SetSymbolSize(symbolSize uint32) {
+// SetSymbolSize sets the symbol size in bytes
+func (factory *DecoderFactory) SetSymbolSize(symbolSize uint64) {
 	C.kslide_decoder_factory_set_symbol_size(
-		factory.mFactory, C.uint32_t(symbolSize))
+		factory.mFactory, C.uint64_t(symbolSize))
 }
 
-// Build builds the actual decoder
-// @param factory The decoder factory which should be used to build the decoder
-// @return pointer to an instantiation of an decoder
+// Field returns the finite field
+func (factory *DecoderFactory) Field() int32 {
+	return int32(C.kslide_decoder_factory_field(factory.mFactory))
+}
+
+// SetField sets the finite field
+func (factory *DecoderFactory) SetField(field int32) {
+	C.kslide_decoder_factory_set_field(factory.mFactory, C.int32_t(field))
+}
+
+// Build builds a decoder
 func (factory *DecoderFactory) Build() *Decoder {
 	decoder := new(Decoder)
 	decoder.mDecoder = C.kslide_decoder_factory_build(factory.mFactory)
-	runtime.SetFinalizer(decoder, freeDecoder)
+	runtime.SetFinalizer(decoder, deleteDecoder)
 	return decoder
+}
+
+// Initialize re-initializes the given decoder so that it can be reused.
+func (factory *DecoderFactory) Initialize(decoder *Decoder) {
+	C.kslide_decoder_factory_initialize(factory.mFactory, decoder.mDecoder)
 }

@@ -13,37 +13,11 @@ import (
 	. "github.com/steinwurf/kodo-slide-go"
 )
 
-type SymbolStorage struct {
-	symbolSize uint32
-	symbols    uint32
-	data       []uint8
-}
-
-func allocateStorage(symbolSize uint32, symbols uint32) *SymbolStorage {
-	symbolStorage := new(SymbolStorage)
-
-	symbolStorage.symbolSize = symbolSize
-	symbolStorage.symbols = symbols
-	symbolStorage.data = make([]uint8, symbols*symbolSize)
-	return symbolStorage
-}
-
-func randomizeStorage(symbolStorage *SymbolStorage) {
-	size := symbolStorage.symbolSize * symbolStorage.symbols
-	for i := uint32(0); i < size; i++ {
-		symbolStorage.data[i] = uint8(rand.Uint32())
-	}
-}
-
-func storageSymbol(symbolStorage *SymbolStorage, index uint32) []uint8 {
-	return symbolStorage.data[index*symbolStorage.symbolSize : (index+1)*symbolStorage.symbolSize]
-}
-
 func Example_encodeDecodeSimple() {
 	// Seed random number generator to produce different results every time
 	rand.Seed(time.Now().UTC().UnixNano())
-	symbols := uint32(100)
-	symbolSize := uint32(750)
+	symbols := uint64(100)
+	symbolSize := uint64(750)
 
 	// Initialization of encoder and decoder
 	encoderFactory := NewEncoderFactory()
@@ -56,26 +30,28 @@ func Example_encodeDecodeSimple() {
 	decoder := decoderFactory.Build()
 
 	// Allocate memory for the encoder and decoder
-	decoderStorage := allocateStorage(symbolSize, symbols)
-	encoderStorage := allocateStorage(symbolSize, symbols)
+	decoderStorage := make([]uint8, symbols*symbolSize)
+	encoderStorage := make([]uint8, symbols*symbolSize)
 
 	// Fill the encoder storage with random data
-	randomizeStorage(encoderStorage)
+	for i := 0; i < len(encoderStorage); i++ {
+		encoderStorage[i] = uint8(rand.Uint32())
+	}
 
 	// Provide the decoder with storage
-	for i := uint32(0); i < symbols; i++ {
-		symbol := storageSymbol(decoderStorage, i)
+	for i := uint64(0); i < symbols; i++ {
+		symbol := GetSymbol(decoderStorage, symbolSize, i)
 		decoder.PushFrontSymbol(&symbol)
 	}
 
 	iterations := uint32(0)
 	maxIterations := uint32(1000)
-	symbolsDecoded := uint32(0)
+	symbolsDecoded := uint64(0)
 
 	for symbolsDecoded < symbols && iterations < maxIterations {
 
 		if encoder.StreamSymbols() < symbols && rand.Uint32()%2 == 0 {
-			symbol := storageSymbol(encoderStorage, encoder.StreamSymbols())
+			symbol := GetSymbol(encoderStorage, symbolSize, encoder.StreamSymbols())
 			encoder.PushFrontSymbol(&symbol)
 		}
 
@@ -86,11 +62,11 @@ func Example_encodeDecodeSimple() {
 		encoder.SetWindow(encoder.StreamLowerBound(), encoder.StreamSymbols())
 		decoder.SetWindow(encoder.StreamLowerBound(), encoder.StreamSymbols())
 
-		coefficients := make([]uint8, encoder.CoefficientsVectorSize())
+		coefficients := make([]uint8, encoder.CoefficientVectorSize())
 
 		symbol := make([]uint8, encoder.SymbolSize())
 
-		encoder.SetSeed(rand.Uint32())
+		encoder.SetSeed(rand.Uint64())
 		encoder.Generate(&coefficients)
 
 		encoder.WriteSymbol(&symbol, &coefficients)
@@ -101,8 +77,8 @@ func Example_encodeDecodeSimple() {
 	}
 
 	// Check if we properly decoded the data
-	for i, v := range encoderStorage.data {
-		if v != decoderStorage.data[i] {
+	for i, v := range encoderStorage {
+		if v != decoderStorage[i] {
 			fmt.Println("Unexpected failure to decode")
 			fmt.Println("Please file a bug report :)")
 			return
